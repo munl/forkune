@@ -44,8 +44,20 @@ pdfinfo "docs/foodpicker app.pdf" | grep -iE 'pages|page size'
 pdftoppm -png -r 150 "docs/foodpicker app.pdf" /tmp/mock
 ```
 
-Read the resulting `/tmp/mock-*.png` with the Read tool (it renders images). For each
-distinct screen in the mock:
+Read the resulting `/tmp/mock-*.png` with the Read tool (it renders images).
+
+To pull a **single screen's frame** off the A2 sheet (e.g. for embedding in an issue —
+see *Attach the screen's mock* below), crop at render time with `pdftoppm`'s region
+flags rather than a separate image tool (no PIL/ImageMagick is assumed present; macOS
+`sips` only center-crops). Read the whole page once to eyeball the frame's pixel box at
+your chosen `-r`, then re-render just that box:
+
+```bash
+# -x/-y = top-left corner, -W/-H = width/height, all in pixels at the given -r
+pdftoppm -png -r 300 -x 492 -y 546 -W 1286 -H 2746 "docs/foodpicker app.pdf" /tmp/home-crop
+```
+
+For each distinct screen in the mock:
 
 - Name it and slugify it (`Home` → `home`).
 - Run the `clean-architecture` **Decision Checklist**: does it persist data (Room vs.
@@ -65,10 +77,11 @@ Write each screen to `docs/tasks/<slug>.md` in the format the harness parses (se
 **Review gate:** stop and let the user edit `docs/tasks/*.md` before anything is
 created. Nothing touches GitHub until they approve.
 
-**Ask which repo the issues go under.** This folder has no git remote, so the target
-must be supplied explicitly — prompt the user for `owner/repo` (e.g. via AskUserQuestion)
-before creating anything, and pass it as `--repo` (or as the MCP owner/repo args). Don't
-assume a repo. The harness also prompts for it if you run it without `--repo`.
+**Confirm which repo the issues go under.** Never create against an assumed repo. If the
+project has a git remote (`git remote -v`), treat that `owner/repo` as the default and
+**confirm it** with the user (e.g. via AskUserQuestion) before creating anything; if there
+is no remote, prompt for `owner/repo` outright. Pass the confirmed value as `--repo` (or as
+the MCP owner/repo args). The harness also prompts for it if you run it without `--repo`.
 
 **Preferred — GitHub MCP** (if one is connected): create issues directly with the MCP's
 create-issue tool, consuming the same files: create the child issues, then a tracking
@@ -94,10 +107,35 @@ tracking epic with a checklist linking the children, then edits children to add
 `Part of #<tracking>` + resolved `Depends on #<n>`. In-file dependencies resolve to
 issue numbers; cross-file deps are noted as `(other file)`.
 
-`--repo` is a plain `owner/repo` string. This folder isn't a git repo, so it must be
-given explicitly — if you omit `--repo`, the harness **prompts** for it (and rejects
-anything not shaped like `owner/repo`). Point it at file(s) or a directory:
-`docs/tasks`, `docs/tasks/*.md`, or a single file.
+`--repo` is a plain `owner/repo` string. If you omit `--repo`, the harness **prompts**
+for it (and rejects anything not shaped like `owner/repo`). Point it at file(s) or a
+directory: `docs/tasks`, `docs/tasks/*.md`, or a single file.
+
+## (Optional) Attach the screen's mock to its issue
+
+Not part of the default flow — do this only when asked to add the screenshot/mock to an
+issue. Crop the screen's frame (see the `pdftoppm` region-crop in Phase 1), commit it to
+`docs/tasks/assets/<slug>.png`, and push. Then reference it from the tracking issue body.
+
+**How it renders depends on repo visibility — this is the gotcha:**
+
+- **Public repo:** an inline image works. GitHub proxies issue images through its
+  anonymous *camo* proxy, which can fetch a public raw URL, so
+  `<img src="https://raw.githubusercontent.com/OWNER/REPO/BRANCH/docs/tasks/assets/<slug>.png" width="320">`
+  renders inline.
+- **Private repo:** an inline `<img>`/markdown image **will NOT render** — camo fetches
+  with no credentials and 404s on private raw content (verify with an unauthenticated
+  `curl -sIL <raw-url>` → 404). The only inline-rendering path for a private repo is a
+  true issue *attachment* (`github.com/user-attachments/assets/…`), and that upload endpoint
+  is web-UI/GraphQL only — **not exposed by the REST API or the GitHub MCP**, so neither the
+  MCP nor `gh` can perform it. Either the user drag-drops the PNG into the issue editor
+  themselves, or fall back to a **markdown link** to the committed file
+  (`[Home mock](https://github.com/OWNER/REPO/blob/BRANCH/docs/tasks/assets/<slug>.png)`),
+  which opens fine in the viewer's authenticated session.
+
+Don't suggest flipping the repo public→private to sneak the render in: it re-breaks on
+re-privatize (any surviving image is an unreliable camo-cache accident), and a
+briefly-public repo is exposed to crawlers/forks in that window.
 
 ## Task-file format
 
