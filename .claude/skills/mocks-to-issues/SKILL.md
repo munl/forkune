@@ -187,7 +187,18 @@ view|screen|navigation|di|strings|test`) plus `screen:<slug>`; tracking issues g
   hand-run `gh`, quote carefully.
 - **Cross-screen shared models** (`Restaurant`, `PlacesRepository`) can't be auto-linked
   by issue number because they live in another file; the harness marks them
-  `Depends on ... (other file)`. Land shared-foundation tasks first.
+  `Depends on ... (other file)`. Land shared-foundation tasks first. When creating via MCP
+  you *can* cross-link them by number (create the shared-foundation screen first, then
+  reference `#<n>` in later epics) — as done here (`shuffling.md`'s `Restaurant`/
+  `PlacesRepository` linked from the Home & Your-pick epics).
+- **MCP `issue_write` strips HTML comments and tag-like tokens from issue bodies.** A
+  literal `<!-- Home -->` or `<HomeViewModel>` — even inside backticks — is silently
+  removed (an *invalid* tag like `composable<...>` survives, just HTML-escaped). Escape
+  intended-literal angle brackets as `&lt;`/`&gt;` in the body you send, e.g.
+  `` `&lt;!-- Home --&gt;` `` and `` `koinViewModel&lt;HomeViewModel&gt;()` `` — they
+  render correctly and aren't stripped. The Strings tasks (`<!-- Screen -->` section
+  markers) are the usual victims. The `gh`/harness path passes bodies as argv and is
+  unaffected.
 - **`pdftoppm` prints `Syntax Warning: Bad bounding box in Type 3 glyph`** — harmless
   (a font quirk in the export); the PNG renders fine.
 
