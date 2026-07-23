@@ -6,6 +6,10 @@ package com.jian.forkune.data.location
  * Backed by Compass, so a single implementation covers Android and iOS.
  */
 interface LocationProvider {
+    /** Whether location permission is already granted (does NOT prompt). */
+    fun hasPermission(): Boolean
+
+    /** Requests permission if needed, then resolves the current area. May prompt the user. */
     suspend fun resolveCurrentArea(): LocationOutcome
 }
 

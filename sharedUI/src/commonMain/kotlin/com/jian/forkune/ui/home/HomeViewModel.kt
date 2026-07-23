@@ -51,6 +51,12 @@ class HomeViewModel(
                 placeCountInternal.value = places.size
             }
         }
+
+        // If permission was already granted (previous session / system settings), refresh the
+        // location on launch without prompting. Denied/undetermined → wait for a tap.
+        if (locationProvider.hasPermission()) {
+            viewModelScope.launch { resolveCurrentLocation() }
+        }
     }
 
     /**

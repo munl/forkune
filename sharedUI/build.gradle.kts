@@ -32,6 +32,8 @@ kotlin {
             implementation(libs.compass.geolocation.mobile)
             api(libs.compass.geocoder)
             implementation(libs.compass.geocoder.mobile)
+            api(libs.compass.permissions)
+            implementation(libs.compass.permissions.mobile)
             api(libs.compose.runtime)
             api(libs.compose.ui)
             api(libs.compose.foundation)

@@ -14,7 +14,7 @@ kotlinx-serialization = "1.11.0"
 coil = "3.4.0"
 kotlinx-datetime = "0.8.0"
 koin = "4.1.0"
-compass = "3.0.0"
+compass = "3.0.2"
 
 [libraries]
 
@@ -58,6 +58,8 @@ compass-geolocation = { module = "dev.jordond.compass:geolocation", version.ref 
 compass-geolocation-mobile = { module = "dev.jordond.compass:geolocation-mobile", version.ref = "compass" }
 compass-geocoder = { module = "dev.jordond.compass:geocoder", version.ref = "compass" }
 compass-geocoder-mobile = { module = "dev.jordond.compass:geocoder-mobile", version.ref = "compass" }
+compass-permissions = { module = "dev.jordond.compass:permissions", version.ref = "compass" }
+compass-permissions-mobile = { module = "dev.jordond.compass:permissions-mobile", version.ref = "compass" }
 
 [plugins]
 

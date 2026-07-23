@@ -6,6 +6,8 @@ import dev.jordond.compass.geocoder.MobileGeocoder
 import dev.jordond.compass.geolocation.Geolocator
 import dev.jordond.compass.geolocation.GeolocatorResult
 import dev.jordond.compass.geolocation.MobileGeolocator
+import dev.jordond.compass.permissions.LocationPermissionController
+import dev.jordond.compass.permissions.MobileLocationPermissionController
 
 /**
  * Compass-backed [LocationProvider] — one implementation for both Android and iOS.
@@ -17,9 +19,12 @@ import dev.jordond.compass.geolocation.MobileGeolocator
  * NSLocationWhenInUseUsageDescription in the iOS Info.plist.
  */
 class CompassLocationProvider(
-    private val geolocator: Geolocator = MobileGeolocator(),
+    private val permissionController: LocationPermissionController = MobileLocationPermissionController(),
+    private val geolocator: Geolocator = MobileGeolocator(permissionController),
     private val geocoder: Geocoder = MobileGeocoder(),
 ) : LocationProvider {
+
+    override fun hasPermission(): Boolean = permissionController.hasPermission()
 
     override suspend fun resolveCurrentArea(): LocationOutcome =
         when (val result = geolocator.current()) {
@@ -28,13 +33,14 @@ class CompassLocationProvider(
                 val place = geocoder
                     .reverse(coordinates.latitude, coordinates.longitude)
                     .getFirstOrNull()
-                LocationOutcome.Resolved(place?.districtName())
+                LocationOutcome.Resolved(place?.cityName())
             }
             is GeolocatorResult.PermissionDenied -> LocationOutcome.PermissionDenied
             // Permission was granted but no fix / unsupported — keep the flow unblocked.
             is GeolocatorResult.Error -> LocationOutcome.Resolved(null)
         }
 
-    private fun Place.districtName(): String? =
-        subLocality ?: locality ?: subAdministrativeArea ?: administrativeArea
+    // Prefer the city (locality); fall back to neighbourhood, then county/state.
+    private fun Place.cityName(): String? =
+        locality ?: subLocality ?: subAdministrativeArea ?: administrativeArea
 }

@@ -107,6 +107,37 @@ class HomeViewModelTest {
     }
 
     @Test
+    fun load_auto_resolves_location_when_permission_already_granted() = runTest(dispatcher) {
+        val prefs = AppPreferences(FakePreferences())
+        val viewModel = HomeViewModel(
+            prefs,
+            FakePlacesRepository(emptyList()),
+            FakeLocationProvider(LocationOutcome.Resolved("San Francisco"), hasPermission = true),
+        )
+
+        viewModel.load()
+        advanceUntilIdle()
+
+        assertEquals("San Francisco", viewModel.location.value)
+        assertEquals("San Francisco", prefs.selectedLocation)
+    }
+
+    @Test
+    fun load_does_not_resolve_location_when_permission_not_granted() = runTest(dispatcher) {
+        val prefs = AppPreferences(FakePreferences())
+        val viewModel = HomeViewModel(
+            prefs,
+            FakePlacesRepository(emptyList()),
+            FakeLocationProvider(LocationOutcome.Resolved("San Francisco"), hasPermission = false),
+        )
+
+        viewModel.load()
+        advanceUntilIdle()
+
+        assertNull(viewModel.location.value)
+    }
+
+    @Test
     fun resolving_location_when_denied_returns_false_and_keeps_no_location() = runTest(dispatcher) {
         val prefs = AppPreferences(FakePreferences())
         val viewModel = HomeViewModel(
@@ -142,7 +173,9 @@ private fun restaurant(name: String) = Restaurant(
 
 private class FakeLocationProvider(
     private val outcome: LocationOutcome = LocationOutcome.Resolved(null),
+    private val hasPermission: Boolean = false,
 ) : LocationProvider {
+    override fun hasPermission(): Boolean = hasPermission
     override suspend fun resolveCurrentArea(): LocationOutcome = outcome
 }
 
