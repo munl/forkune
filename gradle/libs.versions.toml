@@ -1,19 +1,20 @@
 [versions]
 
-kotlin = "2.4.0"
+kotlin = "2.4.10"
 compose-multiplatform = "1.11.1"
 material3 = "1.11.0-alpha07"
 agp = "9.0.0"
-androidx-activityCompose = "1.12.0"
+androidx-activityCompose = "1.13.0"
 kotlinx-coroutines = "1.11.0"
-ktor = "3.5.0"
+ktor = "3.5.1"
+# 2.11.0 (final) requires compileSdk 37 + AGP 9.1; staying on SDK 36 / AGP 9.0.
 androidx-lifecycle = "2.11.0-beta01"
 androidx-nav3 = "1.1.1"
 nav3-browser = "1.1.0"
 kotlinx-serialization = "1.11.0"
-coil = "3.4.0"
+coil = "3.5.0"
 kotlinx-datetime = "0.8.0"
-koin = "4.1.0"
+koin = "4.2.2"
 compass = "3.0.2"
 
 [libraries]
