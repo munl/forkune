@@ -27,6 +27,7 @@ import androidx.compose.ui.text.style.TextAlign
 import com.jian.forkune.theme.Variables
 import forkune.sharedui.generated.resources.Res
 import forkune.sharedui.generated.resources.home_days_ago
+import forkune.sharedui.generated.resources.home_choose_location
 import forkune.sharedui.generated.resources.home_filters
 import forkune.sharedui.generated.resources.home_headline
 import forkune.sharedui.generated.resources.home_last_pick
@@ -59,7 +60,7 @@ typealias onLocationClicked = () -> Unit
  */
 @Composable
 fun HomeView(
-    location: String,
+    location: String?,
     placeCount: Int,
     lastPick: LastPick?,
     onSurpriseClicked: onSurpriseClicked,
@@ -131,7 +132,7 @@ fun HomeView(
 
 @Composable
 private fun TopRow(
-    location: String,
+    location: String?,
     onLocationClicked: onLocationClicked,
     onProfileClicked: onProfileClicked,
 ) {
@@ -163,7 +164,7 @@ private fun TopRow(
                     modifier = Modifier.size(dimensions.spacingLg),
                 )
                 Text(
-                    text = location,
+                    text = location ?: stringResource(Res.string.home_choose_location),
                     style = androidx.compose.material3.MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                     color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface,

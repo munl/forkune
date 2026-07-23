@@ -8,9 +8,9 @@ package com.jian.forkune.utilities.preferences
 class AppPreferences(private val prefs: AppPreferencesInterface) {
 
     private val selectedLocationKey = "selectedLocationKey"
-    var selectedLocation: String
-        get() = prefs.getString(selectedLocationKey, default = DEFAULT_LOCATION)
-        set(value) = prefs.setString(selectedLocationKey, value)
+    var selectedLocation: String?
+        get() = prefs.getStringOrNull(selectedLocationKey)?.takeIf { it.isNotEmpty() }
+        set(value) = prefs.setString(selectedLocationKey, value ?: "")
 
     private val lastPickNameKey = "lastPickNameKey"
     var lastPickName: String?
@@ -23,7 +23,6 @@ class AppPreferences(private val prefs: AppPreferencesInterface) {
         set(value) = prefs.setLong(lastPickAtKey, value ?: NULL_SENTINEL)
 
     companion object {
-        const val DEFAULT_LOCATION = "Mission District"
         private const val NULL_SENTINEL = -1L
     }
 }

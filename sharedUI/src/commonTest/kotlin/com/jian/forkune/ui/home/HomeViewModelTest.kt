@@ -1,5 +1,7 @@
 package com.jian.forkune.ui.home
 
+import com.jian.forkune.data.location.LocationOutcome
+import com.jian.forkune.data.location.LocationProvider
 import com.jian.forkune.data.places.PlacesRepository
 import com.jian.forkune.datamodels.Restaurant
 import com.jian.forkune.utilities.preferences.AppPreferences
@@ -17,7 +19,9 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class HomeViewModelTest {
@@ -42,7 +46,7 @@ class HomeViewModelTest {
             ),
         )
         val places = FakePlacesRepository(List(3) { restaurant("Place $it") })
-        val viewModel = HomeViewModel(prefs, places)
+        val viewModel = HomeViewModel(prefs, places, FakeLocationProvider())
 
         viewModel.load()
         advanceUntilIdle()
@@ -59,7 +63,7 @@ class HomeViewModelTest {
                 longs = mutableMapOf("lastPickAtKey" to 0L),
             ),
         )
-        val viewModel = HomeViewModel(prefs, FakePlacesRepository(emptyList()))
+        val viewModel = HomeViewModel(prefs, FakePlacesRepository(emptyList()), FakeLocationProvider())
 
         viewModel.load()
         advanceUntilIdle()
@@ -68,16 +72,58 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun load_first_run_has_no_last_pick_and_default_location() = runTest(dispatcher) {
+    fun load_first_run_has_no_last_pick_and_no_location() = runTest(dispatcher) {
         val prefs = AppPreferences(FakePreferences())
-        val viewModel = HomeViewModel(prefs, FakePlacesRepository(emptyList()))
+        val viewModel = HomeViewModel(prefs, FakePlacesRepository(emptyList()), FakeLocationProvider())
 
         viewModel.load()
         advanceUntilIdle()
 
         assertNull(viewModel.lastPick.value)
-        assertEquals(AppPreferences.DEFAULT_LOCATION, viewModel.location.value)
+        // null location → the View renders the "Choose location" prompt.
+        assertNull(viewModel.location.value)
         assertEquals(0, viewModel.placeCount.value)
+    }
+
+    @Test
+    fun resolving_location_when_granted_persists_area_name_and_returns_true() = runTest(dispatcher) {
+        val prefs = AppPreferences(FakePreferences())
+        val viewModel = HomeViewModel(
+            prefs,
+            FakePlacesRepository(emptyList()),
+            FakeLocationProvider(LocationOutcome.Resolved("Mission District")),
+        )
+
+        viewModel.load()
+        advanceUntilIdle()
+        assertNull(viewModel.location.value)
+
+        val granted = viewModel.resolveCurrentLocation()
+        advanceUntilIdle()
+
+        assertTrue(granted)
+        assertEquals("Mission District", viewModel.location.value)
+        assertEquals("Mission District", prefs.selectedLocation)
+    }
+
+    @Test
+    fun resolving_location_when_denied_returns_false_and_keeps_no_location() = runTest(dispatcher) {
+        val prefs = AppPreferences(FakePreferences())
+        val viewModel = HomeViewModel(
+            prefs,
+            FakePlacesRepository(emptyList()),
+            FakeLocationProvider(LocationOutcome.PermissionDenied),
+        )
+
+        viewModel.load()
+        advanceUntilIdle()
+
+        val granted = viewModel.resolveCurrentLocation()
+        advanceUntilIdle()
+
+        assertFalse(granted)
+        assertNull(viewModel.location.value)
+        assertNull(prefs.selectedLocation)
     }
 }
 
@@ -93,6 +139,12 @@ private fun restaurant(name: String) = Restaurant(
     accentColorArgb = 0xFF356668L,
     initials = "SZ",
 )
+
+private class FakeLocationProvider(
+    private val outcome: LocationOutcome = LocationOutcome.Resolved(null),
+) : LocationProvider {
+    override suspend fun resolveCurrentArea(): LocationOutcome = outcome
+}
 
 private class FakePlacesRepository(private val initial: List<Restaurant>) : PlacesRepository {
     private val nearbyInternal = MutableStateFlow<List<Restaurant>>(emptyList())

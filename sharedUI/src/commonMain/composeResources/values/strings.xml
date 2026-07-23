@@ -6,6 +6,7 @@
     <string name="theme">Theme</string>
 
     <!-- Home -->
+    <string name="home_choose_location">Choose location</string>
     <string name="home_headline">What should you eat tonight?</string>
     <string name="home_subtitle">%1$d places within a mile. Stop scrolling — let us pick one for you.</string>
     <string name="home_surprise_title">Surprise me</string>

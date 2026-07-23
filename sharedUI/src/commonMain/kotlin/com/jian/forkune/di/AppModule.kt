@@ -1,5 +1,7 @@
 package com.jian.forkune.di
 
+import com.jian.forkune.data.location.CompassLocationProvider
+import com.jian.forkune.data.location.LocationProvider
 import com.jian.forkune.data.places.InMemoryPlacesRepository
 import com.jian.forkune.data.places.PlacesRepository
 import com.jian.forkune.utilities.preferences.AppPreferences
@@ -13,4 +15,5 @@ import org.koin.dsl.module
 val appModule = module {
     single { AppPreferences(get()) }
     single<PlacesRepository> { InMemoryPlacesRepository() }
+    single<LocationProvider> { CompassLocationProvider() }
 }
