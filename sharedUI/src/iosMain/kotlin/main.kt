@@ -2,14 +2,23 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.window.ComposeUIViewController
 import com.jian.forkune.App
+import com.jian.forkune.di.initKoin
 import platform.UIKit.UIApplication
 import platform.UIKit.UIStatusBarStyleDarkContent
 import platform.UIKit.UIStatusBarStyleLightContent
 import platform.UIKit.UIViewController
 import platform.UIKit.setStatusBarStyle
 
-fun MainViewController(): UIViewController = ComposeUIViewController { 
+fun MainViewController(): UIViewController = ComposeUIViewController {
     App(onThemeChanged = { ThemeChanged(it) })
+}.also { initKoinOnce() }
+
+private var koinStarted = false
+private fun initKoinOnce() {
+    if (!koinStarted) {
+        koinStarted = true
+        initKoin()
+    }
 }
 
 @Composable

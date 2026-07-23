@@ -7,6 +7,13 @@ import androidx.compose.ui.graphics.Color
 
 internal val Seed = Color(0xFF1D3557)
 
+// Brand accent — the coral used for the primary "Surprise me" action (mock, screen 1).
+internal val AccentCoral = Color(0xFFF4502E)
+internal val OnAccentCoral = Color(0xFFFFFFFF)
+
+// "Open / last pick" status dot in the Home footer.
+internal val SuccessGreen = Color(0xFF2E9E5B)
+
 internal val PrimaryLight = Color(0xFF485F84)
 internal val OnPrimaryLight = Color(0xFFFFFFFF)
 internal val PrimaryContainerLight = Color(0xFFD5E3FF)

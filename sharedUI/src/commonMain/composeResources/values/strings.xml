@@ -4,4 +4,24 @@
     <string name="run">Run</string>
     <string name="stop">Stop</string>
     <string name="theme">Theme</string>
+
+    <!-- Home -->
+    <string name="home_headline">What should you eat tonight?</string>
+    <string name="home_subtitle">%1$d places within a mile. Stop scrolling — let us pick one for you.</string>
+    <string name="home_surprise_title">Surprise me</string>
+    <string name="home_surprise_caption">Spin the whole menu near you</string>
+    <string name="home_pick_cuisines">Pick cuisines</string>
+    <string name="home_filters">Filters</string>
+    <string name="home_profile_content_description">Profile</string>
+    <string name="home_location_content_description">Current location</string>
+    <string name="home_surprise_content_description">Surprise me</string>
+    <string name="home_last_pick">Last pick: %1$s · %2$s</string>
+    <plurals name="home_days_ago">
+        <item quantity="zero">today</item>
+        <item quantity="one">%d day ago</item>
+        <item quantity="other">%d days ago</item>
+    </plurals>
+
+    <!-- Placeholder (screens not yet built) -->
+    <string name="placeholder_coming_soon">%1$s — coming soon</string>
 </resources>
