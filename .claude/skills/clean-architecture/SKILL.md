@@ -31,6 +31,8 @@ tokens to the **current app's** actual names (discover them from the codebase):
 | `Feature` (e.g. `FeatureScreen`) | The feature you're building | Chosen with the user in Phase 0 |
 | `Entity` (e.g. `EntityRepository`) | A domain concept | New (from Phase 0) or an existing model |
 | `AppTheme` / `Variables` | The app's theme + dimensions/design-system objects | The `theme/` package |
+| `<shared.module>` | The shared KMP module (Gradle path) | `settings.gradle.kts` — in Forkune, `:sharedUI` |
+| `<android.app.module>` | The Android application module | `settings.gradle.kts` — in Forkune, `:androidApp` |
 
 Code snippets use the literal words `App` / `Feature` / `Entity` as stand-ins —
 replace them with the real names (e.g. `Feature` → `Settings`, `Entity` → `Note`).
@@ -174,17 +176,27 @@ Group a feature's presentation files in one `ui/<feature>/` package. Deeper flow
 
 ### 1. Domain model (`datamodels/`)
 
-- Plain `@Serializable @Parcelize data class`. **No Room annotations** — the domain model must not depend on the data layer's shape, only the reverse.
-- If it maps to a Room entity, implement the app's mapping interface (`BaseDataModel<RoomModel>` or equivalent) and provide both directions: a `constructor(roomModel)` and `toDatabaseObject(id: Long?)`.
-- If the feature has no persistence, the model is just a plain data class (no mapping interface).
+- Plain `@Serializable data class`. **No Room annotations** — the domain model must not depend on the data layer's shape, only the reverse.
+- **No `Parcelable`/`@Parcelize`.** It lives in `commonMain`, and `Parcelable` is an Android framework type — it won't compile for the iOS targets. `@Serializable` is what nav args and saved state need on every target anyway.
+- **Only if the app already has a Room mapping interface** (`BaseDataModel<RoomModel>` or equivalent) and this model maps to a Room entity: implement it and provide both directions — a `constructor(roomModel)` and `toDatabaseObject(id: Long?)`. Don't invent the interface for an app that has no Room.
+- Otherwise — no persistence, or persistence via preferences / a network repository — the model is just a plain data class.
 
 ```kotlin
+// The common case: no Room in the app, so no mapping interface.
 @Serializable
-@Parcelize
 data class Entity(
     val title: String,
-    val amount: Int
-) : Parcelable, BaseDataModel<EntityRoomModel> {
+    val amount: Int,
+)
+```
+
+```kotlin
+// Only in an app that already has Room + a BaseDataModel mapping interface:
+@Serializable
+data class Entity(
+    val title: String,
+    val amount: Int,
+) : BaseDataModel<EntityRoomModel> {
 
     constructor(model: EntityRoomModel) : this(model.title, model.amount)
 
@@ -195,6 +207,12 @@ data class Entity(
 ### 2. Data layer — Room, OPTIONAL (`persistentStorage/<entity>/`)
 
 Only when the Decision Checklist says persistence = relational/complex. Three files + two registrations.
+
+> **Not applicable to Forkune.** This app has no Room, no `AppDatabase` and no
+> `BaseDataModel` — persistence is the preferences wrapper (§2b) for primitives, and a
+> ktor-backed repository exposing `StateFlow` for remote data. Don't add the Room
+> dependency to satisfy this section; if a feature here really needs relational storage,
+> raise it with the user first. §2 is retained for apps that do use Room.
 
 **RoomModel** — the `@Entity`. Give a nullable-id secondary constructor so callers can insert without knowing the auto-generated id.
 
@@ -307,7 +325,7 @@ class FeatureViewModel(
 - **Stateless and reusable.** Inputs are plain data + callbacks; it holds no ViewModel and no business logic. This is what you preview and reuse.
 - Declare click callbacks as a `typealias` (`typealias onNoteClicked = (id: Long) -> Unit`).
 - Style via `AppTheme` (`AppTheme.typography.*`, `AppTheme.colors.*`) and `Variables.Dimensions.*`. Never hard-code colors/spacing.
-- **All user-facing text is a string resource** — never a hard-coded literal. Before you can use `stringResource(Res.string.my_new_string)`, add the entry to `composeApp/src/commonMain/composeResources/values/strings.xml` (group it under a `<!-- Feature -->` comment like the existing sections). The `Res.string.*` accessor is code-generated on the next build, so add strings *before* referencing them and expect a build to regenerate `Res`.
+- **All user-facing text is a string resource** — never a hard-coded literal. Before you can use `stringResource(Res.string.my_new_string)`, add the entry to `<shared.module>/src/commonMain/composeResources/values/strings.xml` (group it under a `<!-- Feature -->` comment like the existing sections). The `Res.string.*` accessor is code-generated on the next build, so add strings *before* referencing them and expect a build to regenerate `Res`.
 
 ```kotlin
 typealias onNoteClicked = (id: Long) -> Unit
@@ -373,8 +391,8 @@ Only when the checklist flagged it. A `UseCase` is a small class with a single `
 
 Include tests for new features. Focus on the **ViewModel** (the logic layer); the View is stateless and the Repository is a thin Room wrapper.
 
-- Location: `composeApp/src/commonTest/kotlin/<app.package>/…` mirroring the feature package.
-- Libs: `kotlin.test` (in the catalog as `libs.kotlin.test`). For coroutine/Flow tests add `kotlinx-coroutines-test` to `commonTest` — flag to the user if it's not present yet.
+- Location: `<shared.module>/src/commonTest/kotlin/<app.package>/…` mirroring the feature package. Put it in `iosTest` instead only when it genuinely can't run on the JVM (see "Verifying your work").
+- Libs: `kotlin.test` — declared as the Gradle accessor `kotlin("test")`, **not** a version-catalog alias. Coroutine/Flow tests also need `libs.kotlinx.coroutines.test`. Both are already on `commonTest` in Forkune; flag to the user before adding anything new.
 - Pattern: construct the ViewModel with a **fake repository** (a hand-written class implementing the same surface, ideally an extracted interface) that emits controlled `StateFlow` values. Drive the ViewModel, advance the test dispatcher, assert on the exposed `StateFlow`s.
 
 ```kotlin
@@ -399,14 +417,35 @@ To make a repository fakeable, prefer extracting an `interface` (the ViewModel d
 "Done" means it compiles on both targets, tests pass, and — for anything with
 runtime behavior — you've seen it actually work. Don't stop at "the code looks right."
 
-Use the project's `gradlew` wrapper. Typical commands (confirm task names per repo):
+Use the project's `gradlew` wrapper. **Confirm the real task names with
+`./gradlew <shared.module>:tasks --all` before trusting any command below** — module
+names and test-task names differ per repo, and a guessed task fails with "task not
+found" rather than silently doing nothing.
 
 - **Quick compile (Android variant, includes commonMain):**
-  `./gradlew :composeApp:compileDebugKotlinAndroid`
+  `./gradlew <shared.module>:compileDebugKotlinAndroid`
 - **iOS compile (catches KMP/native issues Android won't):**
-  `./gradlew :composeApp:compileKotlinIosSimulatorArm64`
-- **Unit tests:** `./gradlew :composeApp:testDebugUnitTest`
-- **Full Android build/APK:** `./gradlew :composeApp:assembleDebug`
+  `./gradlew <shared.module>:compileKotlinIosSimulatorArm64`
+- **Unit tests (all targets, aggregated):** `./gradlew <shared.module>:allTests`
+- **Full Android build/APK:** `./gradlew <android.app.module>:assembleDebug`
+
+**In this repo (Forkune):** `<shared.module>` = `:sharedUI`, `<android.app.module>` =
+`:androidApp`. There is **no** `testDebugUnitTest` task — this is an
+`com.android.kotlin.multiplatform.library` module, so unit tests are
+`./gradlew :sharedUI:allTests`, which fans out to `testAndroidHostTest` (JVM) and
+`iosSimulatorArm64Test` (native).
+
+> **`commonTest` only runs where a target's test source set exists.** The Android host
+> test source set requires `withHostTest { }` inside the `android { }` block — without
+> it there is no `androidHostTest` and everything in `commonTest` silently runs on the
+> iOS simulator alone, which looks green while covering half of what you think.
+>
+> Some shared code still can't be host-tested on Android: `SavedState` is
+> `android.os.Bundle` there, and a JVM host test links the stubbed `android.jar` whose
+> methods throw "not mocked". Do **not** paper over that with
+> `unitTests.isReturnDefaultValues = true` — it turns the writes into no-ops and the
+> assertion into a fake pass. Put such tests in `iosTest` (the native `SavedState` is a
+> real in-memory map) and say why in a comment.
 
 Rules of thumb:
 - After adding string resources or new Compose resources, run a build so the

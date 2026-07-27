@@ -25,25 +25,30 @@ labels: layer:data, screen:your-pick
 depends-on: none
 
 Persist favorited places (toggled by the heart icon) as a simple primitive set via the
-preferences wrapper (§2b). Also write the chosen place through to the Home `lastPick*`
-properties.
+preferences wrapper (§2b) — encode as a delimited string through the existing
+`setString` / `getStringOrNull` accessors. Also write the chosen place through to the
+Home last-pick properties.
 
 ### Acceptance criteria
 - [ ] Favorite toggle persists across restart.
-- [ ] Selecting a pick updates the Home last-pick preference.
+- [ ] Selecting a pick updates the Home last-pick preferences (`lastPickName` + `lastPickAt`) — this is the only writer of those keys, which the Home ViewModel already reads.
+- [ ] `AppPreferencesInterface` carries only the primitive accessors actually in use — if a new type is genuinely needed, add the getter/setter pair to the interface, both platform actuals (`AndroidPreferences`, `IosPreferences`) **and** the `commonTest` fake in the same change.
 
 ## Task: YourPickViewModel
 labels: layer:viewmodel, screen:your-pick
 depends-on: Preferences — favorites
 
-Holds the chosen `Restaurant` (passed via nav args or resolved from the repository),
-exposes it and its favorite state as `StateFlow`, and provides `toggleFavorite()` and
-a directions intent payload. No Compose imports.
+Resolves the chosen `Restaurant` from `PlacesRepository` using the id handed in via nav
+args (§8: destinations carry serializable primitives, not domain objects), exposes it
+and its favorite state as `StateFlow`, and provides `toggleFavorite()` plus a directions
+payload. No Compose or platform imports.
 
 ### Acceptance criteria
-- [ ] Exposes the pick + favorite state via `.asStateFlow()`.
-- [ ] `toggleFavorite()` persists via preferences.
+- [ ] Exposes the pick + favorite state via `.asStateFlow()`; backing `MutableStateFlow`s are private.
+- [ ] Resolves the pick from `PlacesRepository` by id rather than receiving a `Restaurant` through navigation.
+- [ ] `toggleFavorite()` persists via `AppPreferences`, and confirming the pick writes `lastPickName` / `lastPickAt`.
 - [ ] Provides the data needed to launch directions (name/coords/address).
+- [ ] Constructor-injected dependencies only.
 
 ## Task: Strings — Your pick
 labels: layer:strings, screen:your-pick
@@ -62,12 +67,19 @@ depends-on: Strings — Your pick
 
 Stateless hero card (accent block + initials, cuisine tag, name, rating·reviews·price·
 distance row, Open-now + hours chips) plus the header (close + favorite) and the two
-action buttons. Styles via `AppTheme`; favorite icon reflects state.
+action buttons.
+
+Styling: `AppTheme` installs MaterialTheme, so colors and type come from
+`MaterialTheme.colorScheme.*` / `MaterialTheme.typography.*`, brand accents from
+`Variables.Colors.*`, and all spacing/sizing from `Variables.Dimensions.*`. Text via
+`stringResource` / `pluralStringResource`. The card's accent block uses
+`Restaurant.accentColorArgb` + `initials`.
 
 ### Acceptance criteria
 - [ ] Matches the mock: hero card, meta row, status chips, two stacked action buttons.
 - [ ] `onGetDirectionsClicked` / `onRollAgainClicked` / `onFavoriteToggled` / `onCloseClicked` typealiases.
 - [ ] Favorite heart reflects the current favorite state.
+- [ ] No hard-coded colors, dimensions or string literals — `MaterialTheme` / `Variables.Colors` / `Variables.Dimensions` / `stringResource` only.
 
 ## Task: YourPickScreen (wiring)
 labels: layer:screen, screen:your-pick
@@ -85,20 +97,31 @@ to Home.
 labels: layer:navigation, screen:your-pick
 depends-on: YourPickScreen
 
-Add the route (accepts the chosen place id/args as serializable primitives) and wire it
-in the nav graph; reachable from Shuffling on stop.
+Add `ScreenDestinations.YourPick` as a `@Serializable data class` carrying the chosen
+place's id/args as serializable primitives, register it as a `subclass(...)` in
+`navSavedStateConfiguration`, and render it from the Navigation3 `entryProvider` in
+`MainNavGraph.kt` via `entry<ScreenDestinations.YourPick> { key -> YourPickScreen(...) }`.
+Reached from Shuffling on stop.
+
+Args are read straight off the typed key — Navigation3 has no `toRoute()`. Navigation is
+`backStack.add(...)` / `backStack.removeLastOrNull()`.
 
 ### Acceptance criteria
-- [ ] Reachable from Shuffling with the chosen place as serializable args.
+- [ ] Reachable from Shuffling with the chosen place passed as serializable primitives on the typed key.
+- [ ] Registered in `navSavedStateConfiguration` and round-tripped by `ScreenDestinationsSerializationTest`.
+- [ ] Roll again / close manipulate the back stack directly (`add` / `removeLastOrNull`) rather than a `navController`.
 
 ## Task: DI — register YourPickViewModel
 labels: layer:di, screen:your-pick
 depends-on: YourPickViewModel
 
-Register `YourPickViewModel` in both `viewModelModule` actuals.
+Register `YourPickViewModel` in the single `commonMain` `viewModelModule` as
+`viewModelOf(::YourPickViewModel)` (clean-architecture §7). Koin's `viewModelOf` is
+multiplatform — no `expect`/`actual` split.
 
 ### Acceptance criteria
-- [ ] Registered android + ios; `get()` count matches constructor.
+- [ ] Registered once in `commonMain/…/di/ViewModelModule.kt` via `viewModelOf(::YourPickViewModel)`; no platform actuals.
+- [ ] Retrieved only via `koinViewModel<YourPickViewModel>()`.
 
 ## Task: Tests — YourPickViewModel
 labels: layer:test, screen:your-pick

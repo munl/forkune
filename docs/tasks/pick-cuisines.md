@@ -33,10 +33,13 @@ labels: layer:data, screen:pick-cuisines
 depends-on: none
 
 Persist the user's selected cuisine keys as a simple primitive set (per §2b) so the
-selection survives navigation and restart. Encode as a delimited string or key-per-flag.
+selection survives navigation and restart. Encode as a delimited string through the
+existing `setString` / `getStringOrNull` accessors rather than adding a collection type
+to the store.
 
 ### Acceptance criteria
-- [ ] Selected cuisine keys read/written via the existing preferences wrapper.
+- [ ] Selected cuisine keys read/written as one typed property on the existing `AppPreferences` wrapper; no second store.
+- [ ] `AppPreferencesInterface` carries only the primitive accessors actually in use — if a new type is genuinely needed, add the getter/setter pair to the interface, both platform actuals (`AndroidPreferences`, `IosPreferences`) **and** the `commonTest` fake in the same change.
 - [ ] Default selection matches the mock (Tacos, Sushi, Thai, Chinese selected).
 
 ## Task: PickCuisinesViewModel
@@ -66,13 +69,18 @@ labels: layer:view, screen:pick-cuisines
 depends-on: Strings — Pick cuisines
 
 Stateless grid of selectable cuisine cards (name + spot count + selected checkmark),
-back button, and the bottom Surprise-me CTA with the selected-count badge. Styles via
-`AppTheme`; selected vs unselected states match the mock (filled orange vs outline).
+back button, and the bottom Surprise-me CTA with the selected-count badge.
+
+Styling: `AppTheme` installs MaterialTheme, so colors and type come from
+`MaterialTheme.colorScheme.*` / `MaterialTheme.typography.*`, brand accents from
+`Variables.Colors.*`, and all spacing/sizing from `Variables.Dimensions.*`. Text via
+`stringResource` / `pluralStringResource`.
 
 ### Acceptance criteria
-- [ ] Two-column grid; selected cards render filled with a checkmark.
+- [ ] Two-column grid; selected cards render filled with a checkmark (selected vs unselected match the mock — filled orange vs outline).
 - [ ] `onCuisineToggled` / `onBackClicked` / `onSurpriseClicked` callbacks as typealiases.
 - [ ] CTA shows the live selected count.
+- [ ] No hard-coded colors, dimensions or string literals — `MaterialTheme` / `Variables.Colors` / `Variables.Dimensions` / `stringResource` only.
 
 ## Task: PickCuisinesScreen (wiring)
 labels: layer:screen, screen:pick-cuisines
@@ -89,20 +97,30 @@ start shuffle with the current selection).
 labels: layer:navigation, screen:pick-cuisines
 depends-on: PickCuisinesScreen
 
-Add the route to `ScreenDestinations.kt` and wire it in the nav graph; reachable from
-Home's "Pick cuisines" button.
+`ScreenDestinations.PickCuisines` already exists as a `@Serializable data object` and is
+registered in `navSavedStateConfiguration`; this task replaces its interim
+`PlaceholderScreen` with the real screen. Render it from the Navigation3 `entryProvider`
+in `MainNavGraph.kt` via `entry<ScreenDestinations.PickCuisines> { PickCuisinesScreen(...) }`.
+
+Navigation is back-stack mutation (`backStack.add(...)` /
+`backStack.removeLastOrNull()`) — there is no `navController`.
 
 ### Acceptance criteria
-- [ ] Navigable from Home; back returns to Home.
+- [ ] Reachable from Home's "Pick cuisines" button via `backStack.add(ScreenDestinations.PickCuisines)`; back pops with `backStack.removeLastOrNull()`.
+- [ ] The `PlaceholderScreen` entry is removed.
+- [ ] Still registered in `navSavedStateConfiguration` and asserted by `ScreenDestinationsSerializationTest`.
 
 ## Task: DI — register PickCuisinesViewModel
 labels: layer:di, screen:pick-cuisines
 depends-on: PickCuisinesViewModel
 
-Register in both `viewModelModule` actuals (android + ios).
+Register `PickCuisinesViewModel` in the single `commonMain` `viewModelModule` as
+`viewModelOf(::PickCuisinesViewModel)` (clean-architecture §7). Koin's `viewModelOf` is
+multiplatform, so there is no `expect`/`actual` split.
 
 ### Acceptance criteria
-- [ ] Registered in androidMain and iosMain; `get()` count matches constructor.
+- [ ] Registered once in `commonMain/…/di/ViewModelModule.kt` via `viewModelOf(::PickCuisinesViewModel)`; no platform actuals.
+- [ ] Retrieved only via `koinViewModel<PickCuisinesViewModel>()`.
 
 ## Task: Tests — PickCuisinesViewModel
 labels: layer:test, screen:pick-cuisines

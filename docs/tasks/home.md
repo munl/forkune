@@ -29,8 +29,9 @@ the small primitives Home persists: the currently selected location label and th
 "last pick" summary (name + timestamp). Store primitives only; no Room.
 
 ### Acceptance criteria
-- [ ] `AppPreferences` exposes `selectedLocation: String`, `lastPickName: String?`, `lastPickAt: Long?` (sentinel-encoded nullables).
+- [ ] `AppPreferences` exposes `selectedLocation: String?`, `lastPickName: String?`, `lastPickAt: Long?` — nullables sentinel-encoded (empty string → `null`, `-1L` → `null`). `selectedLocation` is nullable so a first run renders the "Choose location" prompt.
 - [ ] No new preference store is created; properties added to the existing wrapper.
+- [ ] `AppPreferencesInterface` carries only the primitive accessors actually in use — if a property needs a type the interface lacks, add the getter/setter pair to the interface, both platform actuals (`AndroidPreferences`, `IosPreferences`) **and** the `commonTest` fake in the same change.
 - [ ] Values survive app restart.
 
 ## Task: HomeViewModel
@@ -64,12 +65,17 @@ depends-on: Strings — Home
 
 Stateless `HomeView` (clean-architecture §4): location chip + profile icon row,
 headline + subtitle, the primary Surprise-me card, secondary Pick cuisines / Filters
-buttons, last-pick footer. Inputs are plain data + callbacks; styles via `AppTheme` +
-`Variables.Dimensions`, text via `stringResource`.
+buttons, last-pick footer. Inputs are plain data + callbacks.
+
+Styling: `AppTheme` installs MaterialTheme, so colors and type come from
+`MaterialTheme.colorScheme.*` / `MaterialTheme.typography.*`, brand accents from
+`Variables.Colors.*`, and all spacing/sizing from `Variables.Dimensions.*`. Text via
+`stringResource` / `pluralStringResource`.
 
 ### Acceptance criteria
 - [ ] Holds no ViewModel and no business logic; all data/callbacks are parameters.
-- [ ] Callbacks declared as typealiases (`onSurpriseClicked`, `onPickCuisinesClicked`, `onFiltersClicked`, `onProfileClicked`).
+- [ ] Callbacks declared as typealiases (`onSurpriseClicked`, `onPickCuisinesClicked`, `onFiltersClicked`, `onProfileClicked`, `onLocationClicked`).
+- [ ] No hard-coded colors, dimensions or string literals — `MaterialTheme` / `Variables.Colors` / `Variables.Dimensions` / `stringResource` only.
 - [ ] Matches the mock layout (headline, prominent CTA, two secondary buttons, footer).
 
 ## Task: HomeScreen (wiring)
@@ -89,24 +95,32 @@ labels: layer:navigation, screen:home
 depends-on: HomeScreen
 
 Add the Home route to `navigation/destinations/ScreenDestinations.kt` as a
-`@Serializable data object`, set it as the start destination, and wire a
-`composable<...>` block in the nav graph that renders `HomeScreen` with its
-navigation lambdas.
+`@Serializable data object` implementing `ScreenDestinations : NavKey`, register it in
+`navSavedStateConfiguration`, and render it from the Navigation3 `entryProvider` in
+`MainNavGraph.kt` via `entry<ScreenDestinations.Home> { HomeScreen(...) }`. Home is the
+initial key handed to `rememberNavBackStack`.
+
+Navigation3 has no `NavHost`/`navController` — navigation is back-stack mutation
+(`backStack.add(...)` / `backStack.removeLastOrNull()`) and args are read straight off
+the typed key (no `toRoute()`).
 
 ### Acceptance criteria
-- [ ] Home is the app's start destination.
-- [ ] Surprise me / Pick cuisines / Filters navigate to their destinations.
+- [ ] Home is the app's start destination — the first key in `rememberNavBackStack(navSavedStateConfiguration, ScreenDestinations.Home)`.
+- [ ] Registered as a `subclass(...)` in `navSavedStateConfiguration` and covered by `ScreenDestinationsSerializationTest`.
+- [ ] Surprise me / Pick cuisines / Filters navigate via `backStack.add(...)`; back is `backStack.removeLastOrNull()`.
 
 ## Task: DI — register HomeViewModel
 labels: layer:di, screen:home
 depends-on: HomeViewModel
 
-Register `HomeViewModel` in BOTH `viewModelModule` actuals (android `viewModel { ... }`
-+ ios `factoryOf(::HomeViewModel)`), keeping the `get()` count in sync with the
-constructor.
+Register `HomeViewModel` in the single `commonMain` `viewModelModule` as
+`viewModelOf(::HomeViewModel)` (clean-architecture §7). Koin's `viewModelOf` is
+multiplatform (`koin-core-viewmodel`), so there is **no** `expect`/`actual` split here
+and nothing to keep in sync across targets.
 
 ### Acceptance criteria
-- [ ] Registered in androidMain and iosMain actuals.
+- [ ] Registered once in `commonMain/…/di/ViewModelModule.kt` via `viewModelOf(::HomeViewModel)` — not `viewModel { X(get(), …) }`, and no platform actuals.
+- [ ] `AppPreferences`, `PlacesRepository` and `LocationProvider` resolve from `appModule` singles.
 - [ ] Retrieved only via `koinViewModel<HomeViewModel>()`.
 
 ## Task: Tests — HomeViewModel

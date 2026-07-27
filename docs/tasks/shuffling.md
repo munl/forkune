@@ -77,42 +77,64 @@ Stateless animated card stack (current candidate name + cuisine·rating·distanc
 page-dot indicator, title/subtitle, and a full-screen tap target that calls
 `onStopClicked`. Animation matches the mock's shuffle feel.
 
+Styling: `AppTheme` installs MaterialTheme, so colors and type come from
+`MaterialTheme.colorScheme.*` / `MaterialTheme.typography.*`, brand accents from
+`Variables.Colors.*`, and all spacing/sizing from `Variables.Dimensions.*`. Text via
+`stringResource` / `pluralStringResource`.
+
 ### Acceptance criteria
 - [ ] Renders the current candidate card and dots from parameters.
 - [ ] Tapping anywhere invokes `onStopClicked` (typealias).
 - [ ] No business logic; animation state driven by inputs.
+- [ ] No hard-coded colors, dimensions or string literals — `MaterialTheme` / `Variables.Colors` / `Variables.Dimensions` / `stringResource` only.
 
 ## Task: ShufflingScreen (wiring)
 labels: layer:screen, screen:shuffling
 depends-on: ShufflingViewModel
 
-Wires `ShufflingViewModel` to `ShufflingView`; starts the spin in `LaunchedEffect`,
-and on stop navigates to Your-pick with the chosen `Restaurant`.
+Wires `ShufflingViewModel` to `ShufflingView`; starts the spin in `LaunchedEffect`, and
+on stop navigates to Your-pick. Per clean-architecture §8 the destination carries
+**serializable primitives only** — pass the chosen place's id/key, not the `Restaurant`
+object, and let Your-pick resolve it from `PlacesRepository`.
 
 ### Acceptance criteria
-- [ ] Starts spinning on entry; navigates to Your-pick on stop.
-- [ ] Passes the selected-cuisines argument through to the repository query.
+- [ ] Obtains the VM via `koinViewModel`, collects flows with `collectAsState`; no business logic in the Screen.
+- [ ] Starts spinning on entry; on stop pushes the Your-pick destination via `backStack.add(...)` with the pick's id as a primitive.
+- [ ] Passes the selected-cuisines argument (read off the typed nav key) through to the repository query.
 
 ## Task: Navigation — Shuffling route
 labels: layer:navigation, screen:shuffling
 depends-on: ShufflingScreen
 
-Add the route (accepts the selected-cuisines argument as serializable primitives) and
-wire it in the nav graph; reachable from Home (Surprise me) and Pick cuisines.
+Promote `ScreenDestinations.Shuffling` from a `@Serializable data object` to a
+`@Serializable data class` carrying the selected cuisines as serializable primitives
+(e.g. `val cuisines: List<String>`), and render it from the Navigation3 `entryProvider`
+in `MainNavGraph.kt` via
+`entry<ScreenDestinations.Shuffling> { key -> ShufflingScreen(cuisines = key.cuisines, ...) }`,
+replacing the interim `PlaceholderScreen`.
+
+Args are read straight off the typed key — Navigation3 has no `toRoute()`. Navigation is
+`backStack.add(...)` / `backStack.removeLastOrNull()`.
 
 ### Acceptance criteria
-- [ ] Reachable from both Surprise-me entry points.
-- [ ] Passes selected cuisines as serializable args.
+- [ ] Reachable from both Surprise-me entry points — Home and Pick cuisines — via `backStack.add(ScreenDestinations.Shuffling(...))`.
+- [ ] Selected cuisines carried as serializable primitives on the destination itself.
+- [ ] Registration in `navSavedStateConfiguration` updated for the `data class`, and `ScreenDestinationsSerializationTest` round-trips a representative instance (a `data object` instance no longer compiles there).
+- [ ] The `PlaceholderScreen` entry is removed.
 
 ## Task: DI — register ShufflingViewModel & PlacesRepository
 labels: layer:di, screen:shuffling
 depends-on: ShufflingViewModel
 
-Register `ShufflingViewModel` in both `viewModelModule` actuals and `PlacesRepository`
-as a `single` in `appModule`.
+Register `ShufflingViewModel` in the single `commonMain` `viewModelModule` as
+`viewModelOf(::ShufflingViewModel)`, and bind the real `PlacesRepository` as a `single`
+in `appModule` (clean-architecture §7). Koin's `viewModelOf` is multiplatform — no
+`expect`/`actual` split.
 
 ### Acceptance criteria
-- [ ] VM registered android + ios; repository registered in `appModule`.
+- [ ] VM registered once in `commonMain/…/di/ViewModelModule.kt` via `viewModelOf(::ShufflingViewModel)`; no platform actuals.
+- [ ] `PlacesRepository` bound as `single<PlacesRepository> { … }` in `appModule`, replacing the interim `InMemoryPlacesRepository` binding.
+- [ ] Retrieved only via `koinViewModel<ShufflingViewModel>()` / constructor injection.
 
 ## Task: Tests — ShufflingViewModel
 labels: layer:test, screen:shuffling
