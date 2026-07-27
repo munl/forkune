@@ -1,12 +1,11 @@
 package com.jian.forkune.navigation
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.mutableStateListOf
-import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
+import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
 import com.jian.forkune.navigation.destinations.ScreenDestinations
+import com.jian.forkune.navigation.destinations.navSavedStateConfiguration
 import com.jian.forkune.ui.home.HomeScreen
 import com.jian.forkune.ui.placeholder.PlaceholderScreen
 
@@ -17,7 +16,9 @@ import com.jian.forkune.ui.placeholder.PlaceholderScreen
  */
 @Composable
 fun MainNavGraph() {
-    val backStack = remember { mutableStateListOf<NavKey>(ScreenDestinations.Home) }
+    // rememberNavBackStack (not remember { mutableStateListOf(...) }) so the stack survives
+    // Activity recreation and process death.
+    val backStack = rememberNavBackStack(navSavedStateConfiguration, ScreenDestinations.Home)
 
     NavDisplay(
         backStack = backStack,

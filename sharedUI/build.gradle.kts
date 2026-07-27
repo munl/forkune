@@ -24,23 +24,27 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            api(project.dependencies.platform(libs.koin.bom))
-            api(libs.koin.core)
-            api(libs.koin.compose)
-            api(libs.koin.core.viewmodel)
-            api(libs.koin.compose.viewmodel)
-            api(libs.compass.geolocation)
-            implementation(libs.compass.geolocation.mobile)
-            api(libs.compass.geocoder)
-            implementation(libs.compass.geocoder.mobile)
-            api(libs.compass.permissions)
-            implementation(libs.compass.permissions.mobile)
+            // `api` only for what a consumer of this module compiles against: androidApp's
+            // AppActivity touches compose-runtime and compose-ui directly. Everything else is
+            // an implementation detail of the shared UI and stays off the consumer classpath.
             api(libs.compose.runtime)
             api(libs.compose.ui)
-            api(libs.compose.foundation)
-            api(libs.compose.resources)
-            api(libs.compose.ui.tooling.preview)
-            api(libs.compose.material3)
+
+            implementation(project.dependencies.platform(libs.koin.bom))
+            implementation(libs.koin.core)
+            implementation(libs.koin.compose)
+            implementation(libs.koin.core.viewmodel)
+            implementation(libs.koin.compose.viewmodel)
+            implementation(libs.compass.geolocation)
+            implementation(libs.compass.geolocation.mobile)
+            implementation(libs.compass.geocoder)
+            implementation(libs.compass.geocoder.mobile)
+            implementation(libs.compass.permissions)
+            implementation(libs.compass.permissions.mobile)
+            implementation(libs.compose.foundation)
+            implementation(libs.compose.resources)
+            implementation(libs.compose.ui.tooling.preview)
+            implementation(libs.compose.material3)
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.ktor.client.core)
             implementation(libs.ktor.client.content.negotiation)
@@ -51,6 +55,7 @@ kotlin {
             implementation(libs.androidx.lifecycle.runtime)
             implementation(libs.androidx.lifecycle.viewmodel.navigation3)
             implementation(libs.compose.nav3)
+            implementation(libs.androidx.savedstate)
             implementation(libs.kotlinx.serialization.json)
             implementation(libs.coil)
             implementation(libs.coil.network.ktor)
@@ -64,6 +69,7 @@ kotlin {
         }
 
         androidMain.dependencies {
+            implementation(libs.androidx.core.ktx)
             implementation(libs.kotlinx.coroutines.android)
             implementation(libs.ktor.client.okhttp)
         }

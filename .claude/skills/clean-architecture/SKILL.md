@@ -260,12 +260,17 @@ create a new store, and don't reach for Room.
 class AppPreferences(private val prefs: AppPreferencesInterface) {
 
     // pattern: private key string + typed var delegating to the interface
-    private val featureEnabledKey = "featureEnabledKey"
-    var featureEnabled: Boolean
-        get() = prefs.getBool(featureEnabledKey, default = true)
-        set(value) = prefs.setBool(featureEnabledKey, value)
+    private val selectedLocationKey = "selectedLocationKey"
+    var selectedLocation: String?
+        get() = prefs.getStringOrNull(selectedLocationKey)?.takeIf { it.isNotEmpty() }
+        set(value) = prefs.setString(selectedLocationKey, value ?: "")
 }
 ```
+
+`AppPreferencesInterface` carries **only the primitive accessors currently in use** — don't
+add speculative ones. If a new property needs a type the interface doesn't have yet (e.g. the
+first `Boolean`), add the getter/setter pair to the interface and implement it in both
+platform classes *and* the test fake, in the same change.
 
 - One property per stored value; key string is `private`, property is a public `var`.
 - Store primitives only (encode nullables with a sentinel, e.g. `-1` → `null`, as existing properties do). Complex/relational data belongs in Room.
@@ -357,6 +362,11 @@ Only when the checklist flagged it. A `UseCase` is a small class with a single `
 ### 8. Navigation (`navigation/`)
 
 - Add a route to `navigation/destinations/ScreenDestinations.kt` as a `@Serializable data object` (no args) or `data class` (with args). Args must be serializable primitives; convert complex types to ids/strings.
+- **Also register the new route in `navSavedStateConfiguration`** (same file, directly below the
+  destinations). The back stack uses `rememberNavBackStack` so it survives configuration changes
+  and process death, and that needs every `NavKey` subtype registered for open polymorphism —
+  the reflection-based shortcut is Android-only and unavailable in commonMain. A round-trip test
+  in `commonTest` fails if a destination is missing, so this can't silently rot.
 - Wire it in `MainNavGraph.kt` (or `BottomBarNavGraph.kt` for tabbed screens): a `composable<ScreenDestinations.X>` block that reads args via `toRoute()` and renders the `Screen`, passing navigation lambdas that call `navController.navigate(...)`.
 
 ### 9. Testing (`commonTest/`)

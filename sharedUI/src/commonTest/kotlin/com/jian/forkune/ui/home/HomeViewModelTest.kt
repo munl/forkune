@@ -191,13 +191,9 @@ private class FakePlacesRepository(private val initial: List<Restaurant>) : Plac
 private class FakePreferences(
     private val strings: MutableMap<String, String> = mutableMapOf(),
     private val longs: MutableMap<String, Long> = mutableMapOf(),
-    private val bools: MutableMap<String, Boolean> = mutableMapOf(),
 ) : AppPreferencesInterface {
-    override fun getString(key: String, default: String) = strings[key] ?: default
     override fun setString(key: String, value: String) { strings[key] = value }
     override fun getStringOrNull(key: String) = strings[key]
-    override fun getLong(key: String, default: Long) = longs[key] ?: default
     override fun setLong(key: String, value: Long) { longs[key] = value }
-    override fun getBool(key: String, default: Boolean) = bools[key] ?: default
-    override fun setBool(key: String, value: Boolean) { bools[key] = value }
+    override fun getLong(key: String, default: Long) = longs[key] ?: default
 }
