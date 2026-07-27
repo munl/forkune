@@ -63,6 +63,8 @@ Add copy to `strings.xml` under `<!-- Pick cuisines -->`: title, subtitle
 
 ### Acceptance criteria
 - [ ] No hard-coded literals in the View; spot count uses a plurals/placeholder resource.
+- [ ] Every placeholder is **indexed** (`%1$d` / `%1$s`), never bare `%d` / `%s`. Compose Resources only substitutes indexed placeholders — a bare one renders as the literal text "%d" at runtime, with nothing failing at compile time.
+- [ ] No `<item quantity="zero">` in any plural. English ICU rules have no `zero` category — 0 selects `other` — so the item is dead and 0 renders as "0 spots". If 0 needs different copy, give it its own string and branch in the View.
 
 ## Task: PickCuisinesView (stateless UI)
 labels: layer:view, screen:pick-cuisines

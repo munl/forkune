@@ -60,6 +60,8 @@ again.
 
 ### Acceptance criteria
 - [ ] No hard-coded literals in the View; templated values use placeholders.
+- [ ] Every placeholder is **indexed** (`%1$s`, `%2$s`, …), never bare `%s` / `%d`. Compose Resources only substitutes indexed placeholders — a bare one renders as the literal text "%s" at runtime, with nothing failing at compile time. The multi-arg templates here (rating·reviews, price·distance) need indices regardless.
+- [ ] No `<item quantity="zero">` in any plural. English ICU rules have no `zero` category — 0 selects `other` — so the item is dead and a place with no reviews renders "0 reviews". If 0 needs different copy, give it its own string and branch in the View.
 
 ## Task: YourPickView (stateless UI)
 labels: layer:view, screen:your-pick
