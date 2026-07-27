@@ -17,10 +17,17 @@
     <string name="home_location_content_description">Current location</string>
     <string name="home_surprise_content_description">Surprise me</string>
     <string name="home_last_pick">Last pick: %1$s · %2$s</string>
+    <string name="home_today">today</string>
+    <!--
+      No `zero` item: English ICU plural rules route 0 to `other`, so a `zero` entry here
+      would be dead and a same-day pick would read "0 days ago". The View special-cases
+      0 with home_today instead.
+    -->
+    <!-- Positional %1$d, not bare %d: Compose Resources only substitutes indexed
+         placeholders, so "%d days ago" renders the literal "%d". -->
     <plurals name="home_days_ago">
-        <item quantity="zero">today</item>
-        <item quantity="one">%d day ago</item>
-        <item quantity="other">%d days ago</item>
+        <item quantity="one">%1$d day ago</item>
+        <item quantity="other">%1$d days ago</item>
     </plurals>
 
     <!-- Placeholder (screens not yet built) -->

@@ -35,6 +35,7 @@ import forkune.sharedui.generated.resources.home_location_content_description
 import forkune.sharedui.generated.resources.home_pick_cuisines
 import forkune.sharedui.generated.resources.home_profile_content_description
 import forkune.sharedui.generated.resources.home_subtitle
+import forkune.sharedui.generated.resources.home_today
 import forkune.sharedui.generated.resources.home_surprise_caption
 import forkune.sharedui.generated.resources.home_surprise_content_description
 import forkune.sharedui.generated.resources.home_surprise_title
@@ -270,11 +271,17 @@ private fun LastPickFooter(
 ) {
     if (lastPick == null) return
     val dimensions = Variables.Dimensions
-    val agoText = pluralStringResource(
-        Res.plurals.home_days_ago,
-        lastPick.daysAgo.toInt(),
-        lastPick.daysAgo.toInt(),
-    )
+    // 0 can't come from the plural: English ICU rules select `other` for 0, so it would
+    // render "0 days ago". Same-day picks get their own string.
+    val agoText = if (lastPick.daysAgo == 0L) {
+        stringResource(Res.string.home_today)
+    } else {
+        pluralStringResource(
+            Res.plurals.home_days_ago,
+            lastPick.daysAgo.toInt(),
+            lastPick.daysAgo.toInt(),
+        )
+    }
     Row(
         modifier = modifier,
         horizontalArrangement = Arrangement.Center,

@@ -22,6 +22,10 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
+
+private const val MILLIS_PER_HOUR = 60L * 60 * 1000
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class HomeViewModelTest {
@@ -69,6 +73,50 @@ class HomeViewModelTest {
         advanceUntilIdle()
 
         assertEquals("Sushi Zen", viewModel.lastPick.value?.name)
+    }
+
+    @OptIn(ExperimentalTime::class)
+    @Test
+    fun last_pick_made_earlier_today_is_zero_days_ago() = runTest(dispatcher) {
+        // 0 is the boundary the View special-cases as "today" — the plural can't express it
+        // (English ICU rules route 0 to `other`, i.e. "0 days ago"). See #39.
+        val twoHoursAgo = Clock.System.now().toEpochMilliseconds() - 2 * MILLIS_PER_HOUR
+        val viewModel = HomeViewModel(
+            AppPreferences(
+                FakePreferences(
+                    strings = mutableMapOf("lastPickNameKey" to "Sushi Zen"),
+                    longs = mutableMapOf("lastPickAtKey" to twoHoursAgo),
+                ),
+            ),
+            FakePlacesRepository(emptyList()),
+            FakeLocationProvider(),
+        )
+
+        viewModel.load()
+        advanceUntilIdle()
+
+        assertEquals(0L, viewModel.lastPick.value?.daysAgo)
+    }
+
+    @OptIn(ExperimentalTime::class)
+    @Test
+    fun last_pick_made_yesterday_is_one_day_ago() = runTest(dispatcher) {
+        val yesterday = Clock.System.now().toEpochMilliseconds() - 25 * MILLIS_PER_HOUR
+        val viewModel = HomeViewModel(
+            AppPreferences(
+                FakePreferences(
+                    strings = mutableMapOf("lastPickNameKey" to "Sushi Zen"),
+                    longs = mutableMapOf("lastPickAtKey" to yesterday),
+                ),
+            ),
+            FakePlacesRepository(emptyList()),
+            FakeLocationProvider(),
+        )
+
+        viewModel.load()
+        advanceUntilIdle()
+
+        assertEquals(1L, viewModel.lastPick.value?.daysAgo)
     }
 
     @Test
