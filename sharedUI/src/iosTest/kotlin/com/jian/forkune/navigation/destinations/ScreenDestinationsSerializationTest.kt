@@ -10,9 +10,16 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * Guards [navSavedStateConfiguration]: `rememberNavBackStack` only exercises it when Android
- * restores a saved back stack, so an unregistered destination would otherwise stay invisible
- * until it crashed in the field. Add a destination without registering it and this fails.
+ * Guards [navSavedStateConfiguration]: `rememberNavBackStack` only exercises it when the
+ * platform restores a saved back stack, so an unregistered destination would otherwise stay
+ * invisible until it crashed in the field. Add a destination without registering it and this
+ * fails.
+ *
+ * **iosTest, not commonTest, on purpose.** `SavedState` is `android.os.Bundle` on Android, and
+ * a JVM host test links the stubbed `android.jar` where `Bundle.putBundle` throws "not mocked".
+ * Forcing it green with `unitTests.isReturnDefaultValues = true` would make the write a no-op
+ * and assert an empty round-trip — a fake pass. The native `SavedState` is a real in-memory
+ * map, and the registration this guards is platform-independent, so one target is enough.
  */
 class ScreenDestinationsSerializationTest {
 

@@ -17,6 +17,11 @@ kotlin {
         minSdk = 23
         androidResources.enable = true
         compilerOptions { jvmTarget = JvmTarget.JVM_17 }
+
+        // Without this there is no `androidHostTest` source set, so everything in
+        // commonTest runs on the iOS simulator target ONLY. Shared code deserves to be
+        // asserted on both targets.
+        withHostTest { }
     }
 
     iosArm64()
