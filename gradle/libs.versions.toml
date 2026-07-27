@@ -54,6 +54,7 @@ kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.
 koin-bom = { module = "io.insert-koin:koin-bom", version.ref = "koin" }
 koin-core = { module = "io.insert-koin:koin-core" }
 koin-compose = { module = "io.insert-koin:koin-compose" }
+koin-core-viewmodel = { module = "io.insert-koin:koin-core-viewmodel" }
 koin-compose-viewmodel = { module = "io.insert-koin:koin-compose-viewmodel" }
 compass-geolocation = { module = "dev.jordond.compass:geolocation", version.ref = "compass" }
 compass-geolocation-mobile = { module = "dev.jordond.compass:geolocation-mobile", version.ref = "compass" }

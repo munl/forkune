@@ -126,7 +126,7 @@ Not every feature needs every layer. Ask the user (or decide from the request) a
 2. **Does it need a new domain model?** Only if it introduces a new concept not already present. Reuse existing models where possible.
 3. **Does the ViewModel need a use-case?** Default **no** — ViewModel talks to the Repository directly. Add a `UseCase` only when logic is (a) shared across multiple ViewModels, or (b) complex multi-repository orchestration worth isolating/testing on its own. When in doubt, skip it.
 4. **Is it a navigable screen?** If yes, add a nav route entry and wire it into the nav graph. If it's a sub-component of an existing screen, it may just be a new `View`.
-5. **What gets DI-registered?** Every new ViewModel → both `viewModelModule` actuals (androidMain + iosMain). Every new Repository/helper → `appModule`.
+5. **What gets DI-registered?** Every new ViewModel → `viewModelModule` in commonMain. Every new Repository/helper → `appModule`.
 
 Confirm the checklist outcome in one line before generating files, e.g.
 _"Feature X: persistence = Room, new domain model = Note, use-case = no, navigable = yes."_
@@ -141,7 +141,7 @@ datamodels/                 <Entity>.kt                         (domain)
 persistentStorage/<entity>/ <Entity>RoomModel.kt, <Entity>Dao.kt, <Entity>Repository.kt   (data, optional)
 persistentStorage/          AppDatabase.kt                      (register entity + dao here)
 utilities/…/preferences     AppPreferences.kt                   (simple key-value, optional)
-di/                         AppModule.kt (singles), ViewModelModule.kt (android + ios actuals)
+di/                         AppModule.kt (singles), ViewModelModule.kt (commonMain, all targets)
 navigation/destinations/    ScreenDestinations.kt               (nav route)
 navigation/                 MainNavGraph.kt / BottomBarNavGraph.kt (nav wiring)
 ```
@@ -336,11 +336,23 @@ Only when the checklist flagged it. A `UseCase` is a small class with a single `
 ### 7. Dependency Injection (`di/`)
 
 - **Repositories, helpers, preferences** → `di/AppModule.kt` as `single { XRepository(get()) }`.
-- **ViewModels** → BOTH platform actuals of `viewModelModule`, and they must stay in sync:
-  - `androidMain/…/di/ViewModelModule.kt`: `viewModel { FeatureViewModel(get()) }`
-  - `iosMain/…/di/ViewModelModule.kt`: `factoryOf(::FeatureViewModel)`
-- The `get()` count in the android `viewModel { X(get(), get()) }` must equal the constructor arg count. iOS uses `factoryOf(::X)` which infers them.
+- **ViewModels** → `commonMain/…/di/ViewModelModule.kt` as `viewModelOf(::FeatureViewModel)`. One
+  registration covers every target — Koin's `viewModelOf` is multiplatform (`koin-core-viewmodel`),
+  so there is **no** `expect`/`actual` here and nothing to keep in sync.
+- Prefer the constructor-reference form `viewModelOf(::X)` over `viewModel { X(get(), get()) }`.
+  It infers the dependencies, so it can't drift out of step with the constructor — positional
+  `get()`s silently resolve the wrong instance if two params share a type.
 - Retrieve in Compose only via `koinViewModel<T>()` (screens) or `koinInject<T>()` (non-VM singletons). Never `new` a ViewModel or repository.
+- **Koin is started once per process, from the platform's app object — never from a screen or
+  an Activity.** `startKoin` throws `KoinAppAlreadyStartedException` on a second call, and an
+  Activity is recreated on any configuration change its manifest doesn't absorb (system
+  dark-mode toggle, font scale) while the process — and Koin's global context — survives.
+  - Android: an `Application` subclass calling `initKoin(applicationContext)` in `onCreate()`,
+    wired up via `android:name` on `<application>`.
+  - iOS: the SwiftUI `@main` struct's `init()`, calling the iOS `initKoin()` — which Kotlin
+    exports to Swift as `doInitKoin()` (the ObjC bridge prefixes `init`-family names with `do`).
+  - Only the platform-specific bindings (the key-value store, anything needing a `Context`) go
+    in the per-platform module passed to the shared `initKoin(platformModule)`.
 
 ### 8. Navigation (`navigation/`)
 
@@ -406,7 +418,7 @@ Rules of thumb:
 - Run the Decision Checklist and state the outcome before generating files.
 - Keep the ViewModel free of Compose/platform imports.
 - Map RoomModel ↔ domain model only at the Repository boundary.
-- Register every new ViewModel in BOTH `viewModelModule` actuals.
+- Register every new ViewModel in `viewModelModule` (commonMain) via `viewModelOf(::X)`.
 - Pull versions/aliases from `libs.versions.toml`.
 - Use `AppTheme` + `Variables.Dimensions` + `stringResource` in the View.
 
@@ -427,7 +439,7 @@ Rules of thumb:
 1. Decision Checklist → state outcome. Resolve placeholder names from a sibling feature.
 2. Domain model (if new).
 3. Data layer (if persisting): Room (RoomModel → Dao → Repository → register in `AppDatabase` → register repo in `appModule`) **or** a preferences property.
-4. ViewModel → register in both `viewModelModule` actuals.
+4. ViewModel → register in `viewModelModule` (commonMain).
 5. String resources → add entries to `strings.xml` for all user-facing text.
 6. View (stateless) → Screen (wiring).
 7. Navigation route + graph wiring (if navigable).
@@ -450,7 +462,7 @@ with whatever you discover in the actual codebase you're working in.
 | `BaseDataModel` mapping interface | `datamodels/BaseDataModel.kt` |
 | `AppTheme` / `Variables` | the design-system objects in `theme/` |
 | Nav | the `@Serializable` route sealed class + the nav graph in `navigation/` |
-| DI | `appModule` (singles) + `viewModelModule` android/ios actuals; `koinViewModel<T>()` helper |
+| DI | `appModule` (singles) + `viewModelModule` (commonMain); `koinViewModel<T>()` helper |
 | `Feature` | e.g. `NoteList` → `NoteListScreen` / `NoteListView` / `NoteListViewModel` |
 | `Entity` | e.g. `Note` → `NoteRoomModel` / `NoteDao` / `NoteRepository` |
 

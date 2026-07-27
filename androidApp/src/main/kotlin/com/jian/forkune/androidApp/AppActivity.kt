@@ -10,12 +10,10 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowInsetsControllerCompat
 import com.jian.forkune.App
-import com.jian.forkune.di.initKoin
 
 class AppActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        initKoin(applicationContext)
         enableEdgeToEdge()
         setContent {
             App(onThemeChanged = { ThemeChanged(it) })

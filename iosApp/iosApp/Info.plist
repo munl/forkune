@@ -4,6 +4,10 @@
 <dict>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
+	<!-- Required for the app-level setStatusBarStyle in MainViewController.kt to take
+	     effect; with the default (true) the call is silently ignored. -->
+	<key>UIViewControllerBasedStatusBarAppearance</key>
+	<false/>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Forkune uses your location to find restaurants near you.</string>
 </dict>

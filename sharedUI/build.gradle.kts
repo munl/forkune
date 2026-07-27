@@ -27,6 +27,7 @@ kotlin {
             api(project.dependencies.platform(libs.koin.bom))
             api(libs.koin.core)
             api(libs.koin.compose)
+            api(libs.koin.core.viewmodel)
             api(libs.koin.compose.viewmodel)
             api(libs.compass.geolocation)
             implementation(libs.compass.geolocation.mobile)
