@@ -327,6 +327,35 @@ class FeatureViewModel(
 - Style via `AppTheme` (`AppTheme.typography.*`, `AppTheme.colors.*`) and `Variables.Dimensions.*`. Never hard-code colors/spacing.
 - **All user-facing text is a string resource** — never a hard-coded literal. Before you can use `stringResource(Res.string.my_new_string)`, add the entry to `<shared.module>/src/commonMain/composeResources/values/strings.xml` (group it under a `<!-- Feature -->` comment like the existing sections). The `Res.string.*` accessor is code-generated on the next build, so add strings *before* referencing them and expect a build to regenerate `Res`.
 
+#### Two string-resource traps that fail silently
+
+Both of these compile, produce no warning, and are only caught by asserting the
+**rendered** text. Both shipped in this app before a View test existed (#39).
+
+- **Placeholders must be indexed — `%1$d` / `%1$s`, never bare `%d` / `%s`.** Compose
+  Resources only substitutes indexed placeholders. A bare one is passed through verbatim,
+  so the UI renders the literal characters `%d`:
+
+  ```xml
+  <!-- WRONG: renders "Last pick: Sushi Zen · %d day ago" -->
+  <item quantity="one">%d day ago</item>
+  <!-- RIGHT -->
+  <item quantity="one">%1$d day ago</item>
+  ```
+
+- **Never write `<item quantity="zero">` in a plural.** English ICU plural rules have no
+  `zero` category — 0 selects `other`. The item is dead code and the UI reads "0 days ago"
+  while the XML looks like it handles the case. If 0 needs different copy, give it its own
+  string and branch in the View:
+
+  ```kotlin
+  val agoText = if (daysAgo == 0L) stringResource(Res.string.feature_today)
+                else pluralStringResource(Res.plurals.feature_days_ago, daysAgo.toInt(), daysAgo.toInt())
+  ```
+
+  (Locales that *do* have a `zero` category, e.g. Latvian and Arabic, are a translation
+  concern for those locales — not a reason to add the item to the English source.)
+
 ```kotlin
 typealias onNoteClicked = (id: Long) -> Unit
 
@@ -390,6 +419,27 @@ Only when the checklist flagged it. A `UseCase` is a small class with a single `
 ### 9. Testing (`commonTest/`)
 
 Include tests for new features. Focus on the **ViewModel** (the logic layer); the View is stateless and the Repository is a thin Room wrapper.
+
+**One exception: copy with placeholders or plurals.** "The View is stateless so it needs
+no test" holds for layout, not for string formatting — both traps in §4 render wrong text
+from code that compiles clean, and a ViewModel test can't see them because the ViewModel
+only produces the *number*. When a feature formats a count into copy, add a
+`runComposeUiTest` case asserting the **rendered** string:
+
+```kotlin
+@OptIn(ExperimentalTestApi::class)
+class FeatureViewTest {
+    @Test
+    fun renders_the_count() = runComposeUiTest {
+        setContent { FeatureView(count = 1, /* … */) }
+        onNodeWithText("1 day ago").assertExists()   // catches "%1$d day ago" AND "%d day ago"
+    }
+}
+```
+
+Put Compose UI tests in **`iosTest`, not `commonTest`**: on a JVM host test they die with
+`android.os.Build.FINGERPRINT is null` — they want Robolectric or a device. The View is
+common code, so one target proves the copy.
 
 - Location: `<shared.module>/src/commonTest/kotlin/<app.package>/…` mirroring the feature package. Put it in `iosTest` instead only when it genuinely can't run on the JVM (see "Verifying your work").
 - Libs: `kotlin.test` — declared as the Gradle accessor `kotlin("test")`, **not** a version-catalog alias. Coroutine/Flow tests also need `libs.kotlinx.coroutines.test`. Both are already on `commonTest` in Forkune; flag to the user before adding anything new.
@@ -479,6 +529,8 @@ Rules of thumb:
 - Don't expose `MutableStateFlow` publicly — always `.asStateFlow()`.
 - Don't add a use-case layer by default; only when shared/complex.
 - Don't hard-code colors, dimensions, strings, or library versions.
+- Don't write bare `%d` / `%s` in `strings.xml` — Compose Resources renders them literally. Index them (`%1$d`). See §4.
+- Don't add `<item quantity="zero">` to a plural — English ICU routes 0 to `other`, so it's dead code. See §4.
 
 ---
 
@@ -489,10 +541,10 @@ Rules of thumb:
 2. Domain model (if new).
 3. Data layer (if persisting): Room (RoomModel → Dao → Repository → register in `AppDatabase` → register repo in `appModule`) **or** a preferences property.
 4. ViewModel → register in `viewModelModule` (commonMain).
-5. String resources → add entries to `strings.xml` for all user-facing text.
+5. String resources → add entries to `strings.xml` for all user-facing text. Indexed placeholders (`%1$d`), no `zero` plural item — §4.
 6. View (stateless) → Screen (wiring).
 7. Navigation route + graph wiring (if navigable).
-8. Tests (ViewModel + fake repository).
+8. Tests (ViewModel + fake repository), plus a `runComposeUiTest` case in `iosTest` if the feature formats counts into copy — §9.
 9. Verify: compile Android **and** iOS, run tests, and drive the app via `/run` or `/verify` for anything with runtime behavior. Report results honestly.
 
 ---
